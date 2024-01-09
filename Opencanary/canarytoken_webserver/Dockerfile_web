@@ -1,0 +1,26 @@
+# Stage 1: Build the Go binary
+FROM golang:latest AS builder
+
+WORKDIR /go/src/app
+COPY ./hello-app.go .
+
+# Set environment variables and build the Go binary
+RUN go env -w CGO_ENABLED=0 GO111MODULE=off && go build -o /go/bin/hello-app
+
+# Stage 2: Create the final container
+FROM alpine:latest
+
+# Create a directory for the static files
+RUN mkdir -p /app/static
+
+WORKDIR /app
+
+# Copy the Go binary from the first stage
+COPY --from=builder /go/bin/hello-app .
+
+# Copy the static files (index.html, style.css, script.js)
+COPY ./static /app/static/
+
+EXPOSE 8080
+CMD ["./hello-app"]
+

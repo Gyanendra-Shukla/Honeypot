@@ -1,0 +1,36 @@
+FROM ubuntu:latest
+
+# Install vsftpd and other dependencies
+RUN apt-get update && apt-get install -y vsftpd
+
+# Create an ftp directory for anonymous access
+RUN mkdir -p /home/ftp
+
+# Copy the files into the FTP directory inside the container
+COPY user_access_control.xlsx /home/ftp
+COPY Transaction_Limits.docx /home/ftp
+COPY payslip.sql /home/ftp
+COPY credit_card_statement.xlsx /home/ftp
+COPY Customer_Queries.sql /home/ftp
+COPY Investment_Portfolio.docx /home/ftp
+COPY audit_trails.sql /home/ftp
+COPY Risk_Assessment.docx /home/ftp
+COPY transactio_history.xlsx /home/ftp
+
+RUN chmod -R 555 /home/ftp
+# Configure vsftpd for anonymous access
+RUN echo "anonymous_enable=YES" >> /etc/vsftpd.conf && \
+    echo "local_enable=NO" >> /etc/vsftpd.conf && \
+    echo "write_enable=NO" >> /etc/vsftpd.conf && \
+    echo "anon_upload_enable=NO" >> /etc/vsftpd.conf && \
+    echo "anon_mkdir_write_enable=NO" >> /etc/vsftpd.conf && \
+    echo "pasv_enable=YES" >> /etc/vsftpd.conf && \
+    echo "anon_root=/home/ftp" >> /etc/vsftpd.conf && \
+    echo "pasv_min_port=40000" >> /etc/vsftpd.conf && \
+    echo "pasv_max_port=40100" >> /etc/vsftpd.conf
+# Expose the FTP ports
+EXPOSE 20 21 40000-40100 
+
+# Start vsftpd when the container runs
+CMD service vsftpd start && tail -f /dev/null
+

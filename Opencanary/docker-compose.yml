@@ -1,0 +1,280 @@
+version: '3.1'
+
+services:
+  opencanary_http:
+    build:
+      context: ./opencanary_http 
+      dockerfile: Dockerfile.latest 
+    container_name: opencanary_http
+    volumes:
+      - ./opencanary_http/data/.opencanary.conf:/root/.opencanary.conf
+    restart: always
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - backend
+      - frontend
+    ports:
+      - "80:80" # SCADA UI, http
+    
+  opencanary_ftp:
+    build:
+      context: ./opencanary_ftp 
+      dockerfile: Dockerfile.latest
+    container_name: opencanary_ftp
+    volumes:
+      - ./opencanary_ftp/data/.opencanary.conf:/root/.opencanary.conf
+    restart: always
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - backend
+      - frontend
+    ports:
+      - "21:21" 
+      
+  opencanary_sip:
+    build:
+      context: ./opencanary_sip 
+      dockerfile: Dockerfile.latest
+    container_name: opencanary_sip
+    restart: always
+    volumes:
+      - ./opencanary_sip/data/.opencanary.conf:/root/.opencanary.conf
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - backend
+      - frontend
+    ports:
+      - "5060:5060" 
+
+  opencanary_vnc:
+    build:
+      context: ./opencanary_vnc 
+      dockerfile: Dockerfile.latest
+    container_name: opencanary_vnc
+    restart: always
+    volumes:
+      - ./opencanary_vnc/data/.opencanary.conf:/root/.opencanary.conf
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - backend
+      - frontend
+    ports:
+      - "5000:5000" 
+  
+  opencanary_redis:
+    build:
+      context: ./opencanary_redis 
+      dockerfile: Dockerfile.latest
+    container_name: opencanary_redis
+    restart: always
+    volumes:
+      - ./opencanary_redis/data/.opencanary.conf:/root/.opencanary.conf
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - backend
+      - frontend
+    ports:
+      - "6379:6379" 
+  
+  opencanary_mysql:
+    build:
+      context: ./opencanary_mysql 
+      dockerfile: Dockerfile.latest
+    container_name: opencanary_mysql
+    volumes:
+      - ./opencanary_mysql/data/.opencanary.conf:/root/.opencanary.conf
+    restart: always
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - backend
+      - frontend
+    ports:
+      - "1433:1433" 
+  
+  opencanary_ntp:
+    build:
+      context: ./opencanary_ntp 
+      dockerfile: Dockerfile.latest
+    container_name: opencanary_ntp
+    restart: always
+    volumes:
+      - ./opencanary_ntp/data/.opencanary.conf:/root/.opencanary.conf
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - backend
+      - frontend
+    ports:
+      - "123:123" 
+  
+  opencanary_git:
+    build:
+      context: ./opencanary_git 
+      dockerfile: Dockerfile.latest
+    container_name: opencanary_git
+    restart: always
+    volumes:
+      - ./opencanary_git/data/.opencanary.conf:/root/.opencanary.conf
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - backend
+      - frontend
+    ports:
+      - "9418:9418" 
+  
+  
+  opencanary_snmp:
+    build:
+      context: ./opencanary_snmp 
+      dockerfile: Dockerfile.latest
+    container_name: opencanary_snmp
+    restart: always
+    volumes:
+      - ./opencanary_snmp/data/.opencanary.conf:/root/.opencanary.conf
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - backend
+      - frontend
+    ports:
+      - "161:161" 
+  
+  opencanary_telnet:
+    build:
+      context: ./opencanary_telnet 
+      dockerfile: Dockerfile.latest
+    container_name: opencanary_telnet
+    restart: always
+    volumes:
+      - ./opencanary_telnet/data/.opencanary.conf:/root/.opencanary.conf
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - backend
+      - frontend
+    ports:
+      - "23:23"
+
+  canarytoken_webserver:
+    build:
+      context: ./canarytoken_webserver
+      dockerfile: Dockerfile_web
+    container_name: canarytoken_webserver
+    restart: always
+    #volumes:
+    #  - ./opencanary_snmp/data/.opencanary.conf:/root/.opencanary.conf
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - backend
+      - frontend
+    ports:
+      - "8080:8080" 
+
+  canarytoken_ftp:
+    build:
+      context: ./canarytoken_ftp
+
+      dockerfile: Dockerfile_ftp
+    container_name: canarytoken_ftp
+    restart: always
+    #volumes:
+    #  - ./opencanary_snmp/data/.opencanary.conf:/root/.opencanary.conf
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - backend
+      - frontend
+    ports:
+      - "20:20"
+      - "2121:21"
+      - "40000-40100:40000-40100"
+ 
+  
+  agent:
+    # Existing service configuration for the honeypot agent
+    build:
+      context: .
+      dockerfile: ./agent/agent_dockerfile
+    container_name: honeypot_agent
+    restart: always
+    networks:
+      - elk
+    ports:
+      - '9090:9090'
+    depends_on:
+      - elasticsearch
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.7.0
+    networks:
+      - elk
+    depends_on:
+      - opencanary_http
+      - opencanary_ftp
+      - opencanary_vnc
+      - opencanary_git
+      - opencanary_snmp
+      - opencanary_redis
+      - opencanary_mysql
+      - opencanary_sip
+      - opencanary_ntp
+      - opencanary_telnet
+      - canarytoken_webserver
+      - canarytoken_ftp
+    environment:
+      cluster.name: elk
+      network.host: 0.0.0.0
+      discovery.type: single-node
+      ES_JAVA_OPTS: "-Xms256m -Xmx256m"
+    restart: always
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.7.0
+    command: ["--strict.perms=false", "-c", "/usr/share/filebeat/filebeat.yml"]
+    volumes:
+      - ./suricata/logs:/var/log/suricata:ro
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+    networks:
+      - elk
+    environment:
+      LS_JAVA_OPTS: "-Xms256m -Xmx256m"
+    restart: always
+    depends_on:
+      #- kibana
+      - suricata
+      
+  suricata:
+    image: jasonish/suricata:latest
+    command: -i hp_core
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - SYS_NICE
+    volumes:
+      - ./suricata/logs:/var/log/suricata
+      - ./suricata/rules:/var/lib/suricata
+      - ./suricata/config:/etc/suricata
+    restart: always
+    depends_on:
+      - elasticsearch
+
+
+networks:
+  frontend:
+    internal: false
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: hp_core
+  backend:
+    internal: true
+  elk:
+    # Existing network configuration for ELK stack
+    # ...
